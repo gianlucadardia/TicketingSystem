@@ -3,6 +3,8 @@ using Microsoft.Identity.Web;
 using Azure.Identity;
 using TicketingSystem.Data;
 
+try
+{
 var builder = WebApplication.CreateBuilder(args);
 
 // Add Azure AD Authentication
@@ -65,4 +67,18 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine("==== ERRORE CRITICO ====");
+    Console.WriteLine($"Tipo: {ex.GetType().Name}");
+    Console.WriteLine($"Messaggio: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    if (ex.InnerException != null)
+    {
+        Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+    }
+    Console.WriteLine("========================");
+    Environment.Exit(1);
+}
 
