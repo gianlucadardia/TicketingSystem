@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Select } from 'antd';
 import { apiClient } from '../services/api';
 
@@ -22,11 +22,7 @@ export const ForeignKeySelect: React.FC<Props> = ({
   const [options, setOptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadOptions();
-  }, [type, macroCausaId]);
-
-  const loadOptions = async () => {
+  const loadOptions = useCallback(async () => {
     setLoading(true);
     try {
       let endpoint = '';
@@ -38,12 +34,12 @@ export const ForeignKeySelect: React.FC<Props> = ({
           endpoint = '/macrocause';
           break;
         case 'causa':
-          endpoint = macroCausaId 
+          endpoint = macroCausaId
             ? `/cause/bymacrocausa/${macroCausaId}`
             : '/cause';
           break;
       }
-      
+
       const response = await apiClient.get(endpoint);
       setOptions(response.data);
     } catch (error) {
@@ -51,7 +47,11 @@ export const ForeignKeySelect: React.FC<Props> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [type, macroCausaId]);
+
+  useEffect(() => {
+    loadOptions();
+  }, [loadOptions]);
 
   return (
     <Select
