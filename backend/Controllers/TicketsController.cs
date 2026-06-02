@@ -75,12 +75,25 @@ public class TicketsController : ControllerBase
             return BadRequest();
         }
 
+        var existingTicket = await _context.TicketAperti.FindAsync(id);
+        if (existingTicket == null)
+        {
+            return NotFound();
+        }
+
         // Set audit fields
         var userName = User.Identity?.Name ?? "System";
-        ticket.ModificatoDa = userName;
-        ticket.ModificatoIl = DateTime.UtcNow;
-
-        _context.Entry(ticket).State = EntityState.Modified;
+        existingTicket.Titolo = ticket.Titolo;
+        existingTicket.Descrizione = ticket.Descrizione;
+        existingTicket.CompetenzaId = ticket.CompetenzaId;
+        existingTicket.MacroCausaId = ticket.MacroCausaId;
+        existingTicket.CausaId = ticket.CausaId;
+        existingTicket.Stato = ticket.Stato;
+        existingTicket.Priorita = ticket.Priorita;
+        existingTicket.DataChiusura = ticket.DataChiusura;
+        existingTicket.AssegnatoA = ticket.AssegnatoA;
+        existingTicket.ModificatoDa = userName;
+        existingTicket.ModificatoIl = DateTime.UtcNow;
 
         try
         {
