@@ -15,6 +15,9 @@ export interface TicketAperto {
   creatoIl?: Date;
   modificatoDa?: string;
   modificatoIl?: Date;
+  competenza?: Competenza;
+  macroCausa?: MacroCausa;
+  causa?: Causa;
   commenti?: Commento[];
 }
 
