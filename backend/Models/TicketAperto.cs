@@ -3,6 +3,7 @@ namespace TicketingSystem.Models;
 public class TicketAperto
 {
     public int Id { get; set; }
+    public string CodiceTicket { get; set; } = string.Empty;
     public required string Titolo { get; set; }
     public string? Descrizione { get; set; }
     

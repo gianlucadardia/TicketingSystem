@@ -60,10 +60,24 @@ public class TicketsController : ControllerBase
         ticket.CreatoDa = userName;
         ticket.CreatoIl = DateTime.UtcNow;
 
+        // Generate CodiceTicket
+        ticket.CodiceTicket = await GenerateCodiceTicket();
+
         _context.TicketAperti.Add(ticket);
         await _context.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetTicket), new { id = ticket.Id }, ticket);
+    }
+
+    private async Task<string> GenerateCodiceTicket()
+    {
+        // Get max ticket number
+        var lastTicket = await _context.TicketAperti
+            .OrderByDescending(t => t.Id)
+            .FirstOrDefaultAsync();
+        
+        int nextNumber = (lastTicket?.Id ?? 0) + 1;
+        return $"TICK-{nextNumber:D4}";
     }
 
     // PUT: api/tickets/5
