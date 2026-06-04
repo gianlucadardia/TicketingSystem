@@ -1,5 +1,6 @@
 export interface TicketAperto {
   id?: number;
+  codiceTicket?: string;
   titolo: string;
   descrizione?: string;
   competenzaId?: number;
@@ -14,6 +15,7 @@ export interface TicketAperto {
   creatoIl?: Date;
   modificatoDa?: string;
   modificatoIl?: Date;
+  commenti?: Commento[];
 }
 
 export interface Competenza {
@@ -44,7 +46,9 @@ export interface Causa {
 export interface Commento {
   id?: number;
   ticketId: number;
+  codiceTicket?: string;
   testo: string;
   autore?: string;
   creatoIl?: Date;
+  modificatoIl?: Date;
 }

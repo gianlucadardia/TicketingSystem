@@ -77,6 +77,7 @@ public class ApplicationDbContext : DbContext
             entity.ToTable("ticket_aperti");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CodiceTicket).HasColumnName("codice_ticket").HasMaxLength(20).IsRequired();
             entity.Property(e => e.Titolo).HasColumnName("titolo").HasMaxLength(200).IsRequired();
             entity.Property(e => e.Descrizione).HasColumnName("descrizione");
             entity.Property(e => e.CompetenzaId).HasColumnName("competenza_id");
@@ -107,6 +108,7 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.CausaId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            entity.HasIndex(e => e.CodiceTicket).IsUnique().HasDatabaseName("idx_ticket_codice");
             entity.HasIndex(e => e.CompetenzaId).HasDatabaseName("idx_ticket_competenza");
             entity.HasIndex(e => e.Stato).HasDatabaseName("idx_ticket_stato");
             entity.HasIndex(e => e.DataApertura).HasDatabaseName("idx_ticket_data_apertura");
@@ -119,6 +121,7 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.TicketId).HasColumnName("ticket_id");
+            entity.Property(e => e.CodiceTicket).HasColumnName("codice_ticket").HasMaxLength(20).IsRequired();
             entity.Property(e => e.Testo).HasColumnName("testo").IsRequired();
             entity.Property(e => e.Autore).HasColumnName("autore").HasMaxLength(100).IsRequired();
             entity.Property(e => e.CreatoIl).HasColumnName("creato_il").HasDefaultValueSql("GETDATE()");
@@ -130,6 +133,7 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.TicketId).HasDatabaseName("idx_commenti_ticket");
+            entity.HasIndex(e => e.CodiceTicket).HasDatabaseName("idx_commenti_codice_ticket");
             entity.HasIndex(e => e.CreatoIl).HasDatabaseName("idx_commenti_data");
         });
     }

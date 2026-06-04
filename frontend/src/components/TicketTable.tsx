@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Table, Button, Input, Select, message } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, MessageOutlined, MessageFilled } from '@ant-design/icons';
 import { TicketAperto } from '../types/models';
 import { ticketService } from '../services/ticketService';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { ActionsMenu } from './ActionsMenu';
 import { TicketFormModal } from './TicketFormModal';
+import { CommentModal } from './CommentModal';
 
 export const TicketTable: React.FC = () => {
   const [tickets, setTickets] = useState<TicketAperto[]>([]);
@@ -16,6 +17,7 @@ export const TicketTable: React.FC = () => {
   const [prioritaFilter, setPrioritaFilter] = useState<string | undefined>(undefined);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState<TicketAperto | null>(null);
+  const [commentModalTicket, setCommentModalTicket] = useState<TicketAperto | null>(null);
 
   useEffect(() => {
     loadTickets();
@@ -145,6 +147,30 @@ export const TicketTable: React.FC = () => {
     },
     {
       title: '',
+      key: 'comment',
+      width: 56,
+      align: 'center' as const,
+      render: (_: unknown, record: TicketAperto) => {
+        // Verifica se il ticket ha commenti (record.commenti dal backend con Include)
+        const hasComment = record.commenti && record.commenti.length > 0;
+        return (
+          <Button
+            type="text"
+            icon={
+              hasComment ? (
+                <MessageFilled style={{ fontSize: 18, color: '#1890ff' }} />
+              ) : (
+                <MessageOutlined style={{ fontSize: 18, color: '#d9d9d9' }} />
+              )
+            }
+            onClick={() => setCommentModalTicket(record)}
+            title={hasComment ? 'Visualizza commento' : 'Aggiungi commento'}
+          />
+        );
+      },
+    },
+    {
+      title: '',
       key: 'actions',
       width: 56,
       fixed: 'right' as const,
@@ -215,7 +241,7 @@ export const TicketTable: React.FC = () => {
           pageSize: 10,
           showSizeChanger: true,
           showTotal: (total) => `Totale ${total} ticket`,
-          position: ['bottomRight'],
+          placement: ['bottomEnd'],
         }}
         rowClassName="ticket-row"
       />
@@ -236,6 +262,19 @@ export const TicketTable: React.FC = () => {
         onSubmit={handleUpdate}
         onCancel={() => setEditingTicket(null)}
       />
+
+      {/* Comment modal */}
+      {commentModalTicket && (
+        <CommentModal
+          visible={commentModalTicket !== null}
+          onClose={() => {
+            setCommentModalTicket(null);
+            loadTickets(); // Ricarica per aggiornare l'icona commenti
+          }}
+          ticketId={commentModalTicket.id!}
+          codiceTicket={commentModalTicket.codiceTicket || `TICKET-${commentModalTicket.id}`}
+        />
+      )}
     </div>
   );
 };

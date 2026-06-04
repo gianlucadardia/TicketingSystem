@@ -18,12 +18,66 @@ public class CommentiController : ControllerBase
         _context = context;
     }
 
+    public sealed class CreateCommentoRequest
+    {
+        public int TicketId { get; set; }
+        public string Testo { get; set; } = string.Empty;
+    }
+
+    public sealed class UpdateCommentoRequest
+    {
+        public string Testo { get; set; } = string.Empty;
+    }
+
     // GET: api/commenti/ticket/5
     [HttpGet("ticket/{ticketId}")]
     public async Task<ActionResult<IEnumerable<Commento>>> GetCommentiByTicket(int ticketId)
     {
         return await _context.Commenti
             .Where(c => c.TicketId == ticketId)
+            .OrderByDescending(c => c.CreatoIl)
+            .ToListAsync();
+    }
+
+    // GET: api/commenti/codice/TICK-0001
+    [HttpGet("codice/{codiceTicket}")]
+    public async Task<ActionResult<Commento>> GetCommentoByCodiceTicket(string codiceTicket)
+    {
+        var commento = await _context.Commenti
+            .FirstOrDefaultAsync(c => c.CodiceTicket == codiceTicket);
+
+        if (commento == null)
+        {
+            return NotFound();
+        }
+
+        return commento;
+    }
+
+    // GET: api/commenti/search?query=test
+    [HttpGet("search")]
+    public async Task<ActionResult<IEnumerable<Commento>>> SearchCommenti([FromQuery] string? query)
+    {
+        var commentiQuery = _context.Commenti.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            commentiQuery = commentiQuery.Where(c =>
+                c.Testo.Contains(query) ||
+                c.CodiceTicket.Contains(query) ||
+                c.Autore.Contains(query));
+        }
+
+        return await commentiQuery
+            .OrderByDescending(c => c.CreatoIl)
+            .ToListAsync();
+    }
+
+    // GET: api/commenti (all)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<Commento>>> GetAllCommenti()
+    {
+        return await _context.Commenti
             .OrderByDescending(c => c.CreatoIl)
             .ToListAsync();
     }
@@ -44,12 +98,44 @@ public class CommentiController : ControllerBase
 
     // POST: api/commenti
     [HttpPost]
-    public async Task<ActionResult<Commento>> CreateCommento(Commento commento)
+    public async Task<ActionResult<Commento>> CreateCommento(CreateCommentoRequest request)
     {
+        if (request.TicketId <= 0)
+        {
+            return BadRequest("Ticket non valido");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Testo))
+        {
+            return BadRequest("Il testo del commento è obbligatorio");
+        }
+
         // Set autore from authenticated user
         var userName = User.Identity?.Name ?? "System";
-        commento.Autore = userName;
-        commento.CreatoIl = DateTime.UtcNow;
+
+        // Get CodiceTicket from ticket
+        var ticket = await _context.TicketAperti.FindAsync(request.TicketId);
+        if (ticket == null)
+        {
+            return BadRequest("Ticket non trovato");
+        }
+
+        var existingCommento = await _context.Commenti
+            .FirstOrDefaultAsync(c => c.TicketId == request.TicketId);
+
+        if (existingCommento != null)
+        {
+            return BadRequest("Esiste gia un commento per questo ticket");
+        }
+
+        var commento = new Commento
+        {
+            TicketId = request.TicketId,
+            CodiceTicket = ticket.CodiceTicket,
+            Testo = request.Testo.Trim(),
+            Autore = userName,
+            CreatoIl = DateTime.UtcNow
+        };
 
         _context.Commenti.Add(commento);
         await _context.SaveChangesAsync();
@@ -59,15 +145,21 @@ public class CommentiController : ControllerBase
 
     // PUT: api/commenti/5
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateCommento(int id, Commento commento)
+    public async Task<IActionResult> UpdateCommento(int id, UpdateCommentoRequest request)
     {
-        if (id != commento.Id)
+        if (string.IsNullOrWhiteSpace(request.Testo))
         {
-            return BadRequest();
+            return BadRequest("Il testo del commento è obbligatorio");
         }
 
+        var commento = await _context.Commenti.FindAsync(id);
+        if (commento == null)
+        {
+            return NotFound();
+        }
+
+        commento.Testo = request.Testo.Trim();
         commento.ModificatoIl = DateTime.UtcNow;
-        _context.Entry(commento).State = EntityState.Modified;
 
         try
         {
