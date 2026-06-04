@@ -3,11 +3,13 @@ import { Table, Input, Button, Modal, Form, App as AntdApp } from 'antd';
 import { Commento } from '../types/models';
 import { SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { commentService } from '../services/commentService';
+import { useNavigate } from 'react-router-dom';
 
 const { TextArea } = Input;
 
 export const CommentsTable: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [comments, setComments] = useState<Commento[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -91,10 +93,7 @@ export const CommentsTable: React.FC = () => {
       render: (codiceTicket: string) => (
         <Button
           type="link"
-          onClick={(e) => {
-            e.preventDefault();
-            message.info(`Navigazione al ticket ${codiceTicket}`);
-          }}
+          onClick={() => navigate(`/?codiceTicket=${encodeURIComponent(codiceTicket)}`)}
           style={{ fontWeight: 600, padding: 0 }}
         >
           {codiceTicket}

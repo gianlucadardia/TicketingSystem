@@ -8,8 +8,10 @@ import { PriorityBadge } from './PriorityBadge';
 import { ActionsMenu } from './ActionsMenu';
 import { TicketFormModal } from './TicketFormModal';
 import { CommentModal } from './CommentModal';
+import { useSearchParams } from 'react-router-dom';
 
 export const TicketTable: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tickets, setTickets] = useState<TicketAperto[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -18,10 +20,19 @@ export const TicketTable: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState<TicketAperto | null>(null);
   const [commentModalTicket, setCommentModalTicket] = useState<TicketAperto | null>(null);
+  const codiceTicketFilter = searchParams.get('codiceTicket') ?? '';
 
   useEffect(() => {
     loadTickets();
   }, []);
+
+  useEffect(() => {
+    if (codiceTicketFilter) {
+      setSearchText(codiceTicketFilter);
+      setStatoFilter(undefined);
+      setPrioritaFilter(undefined);
+    }
+  }, [codiceTicketFilter]);
 
   const loadTickets = async () => {
     setLoading(true);
@@ -79,6 +90,7 @@ export const TicketTable: React.FC = () => {
     return tickets.filter((ticket) => {
       const matchesSearch =
         !searchText ||
+        (ticket.codiceTicket && ticket.codiceTicket.toLowerCase().includes(lowerSearch)) ||
         ticket.titolo.toLowerCase().includes(lowerSearch) ||
         (ticket.descrizione && ticket.descrizione.toLowerCase().includes(lowerSearch));
       const matchesStato = !statoFilter || ticket.stato === statoFilter;
@@ -93,6 +105,19 @@ export const TicketTable: React.FC = () => {
       key: 'ticket',
       render: (_: unknown, record: TicketAperto) => (
         <div>
+          {record.codiceTicket && (
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: '#2563eb',
+                marginBottom: 4,
+                letterSpacing: '0.02em',
+              }}
+            >
+              {record.codiceTicket}
+            </div>
+          )}
           <div
             style={{
               fontWeight: 600,
@@ -188,11 +213,22 @@ export const TicketTable: React.FC = () => {
       {/* Toolbar */}
       <div className="ticket-toolbar">
         <Input.Search
-          placeholder="Cerca per titolo o descrizione..."
+          placeholder="Cerca per codice ticket, titolo o descrizione..."
           allowClear
           value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          onSearch={setSearchText}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSearchText(value);
+            if (!value && codiceTicketFilter) {
+              setSearchParams({});
+            }
+          }}
+          onSearch={(value) => {
+            setSearchText(value);
+            if (!value && codiceTicketFilter) {
+              setSearchParams({});
+            }
+          }}
           style={{ flex: '1 1 280px', maxWidth: 420 }}
         />
         <Select
