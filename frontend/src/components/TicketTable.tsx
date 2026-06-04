@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Table, Button, Input, Select, message } from 'antd';
+import { Table, Button, Input, Select, Segmented, message } from 'antd';
 import { PlusOutlined, MessageOutlined, MessageFilled } from '@ant-design/icons';
 import { TicketAperto } from '../types/models';
 import { ticketService } from '../services/ticketService';
@@ -10,16 +10,20 @@ import { TicketFormModal } from './TicketFormModal';
 import { CommentModal } from './CommentModal';
 import { useSearchParams } from 'react-router-dom';
 
+type FilterMode = 'withoutComments' | 'certified' | 'all';
+
 export const TicketTable: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tickets, setTickets] = useState<TicketAperto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filterMode, setFilterMode] = useState<FilterMode>('withoutComments');
   const [searchText, setSearchText] = useState('');
   const [statoFilter, setStatoFilter] = useState<string | undefined>(undefined);
   const [prioritaFilter, setPrioritaFilter] = useState<string | undefined>(undefined);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState<TicketAperto | null>(null);
   const [commentModalTicket, setCommentModalTicket] = useState<TicketAperto | null>(null);
+  const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
   const codiceTicketFilter = searchParams.get('codiceTicket') ?? '';
 
   useEffect(() => {
@@ -28,6 +32,8 @@ export const TicketTable: React.FC = () => {
 
   useEffect(() => {
     if (codiceTicketFilter) {
+      // Deep-link by codice ticket must surface the ticket regardless of default mode.
+      setFilterMode('all');
       setSearchText(codiceTicketFilter);
       setStatoFilter(undefined);
       setPrioritaFilter(undefined);
@@ -84,10 +90,26 @@ export const TicketTable: React.FC = () => {
     }
   };
 
+  const countsByMode = useMemo(() => {
+    const withoutComments = tickets.filter((ticket) => (ticket.commenti?.length ?? 0) === 0).length;
+    const certified = tickets.filter((ticket) => (ticket.commenti?.length ?? 0) >= 1).length;
+
+    return {
+      withoutComments,
+      certified,
+      all: tickets.length,
+    };
+  }, [tickets]);
+
   // Client-side filtering applied on top of loaded data
   const filteredTickets = useMemo(() => {
     const lowerSearch = searchText.toLowerCase();
-    return tickets.filter((ticket) => {
+    const filtered = tickets.filter((ticket) => {
+      const commentCount = ticket.commenti?.length ?? 0;
+      const matchesMode =
+        filterMode === 'all' ||
+        (filterMode === 'withoutComments' && commentCount === 0) ||
+        (filterMode === 'certified' && commentCount >= 1);
       const matchesSearch =
         !searchText ||
         (ticket.codiceTicket && ticket.codiceTicket.toLowerCase().includes(lowerSearch)) ||
@@ -95,54 +117,80 @@ export const TicketTable: React.FC = () => {
         (ticket.descrizione && ticket.descrizione.toLowerCase().includes(lowerSearch));
       const matchesStato = !statoFilter || ticket.stato === statoFilter;
       const matchesPriorita = !prioritaFilter || ticket.priorita === prioritaFilter;
-      return matchesSearch && matchesStato && matchesPriorita;
+      return matchesMode && matchesSearch && matchesStato && matchesPriorita;
     });
-  }, [tickets, searchText, statoFilter, prioritaFilter]);
+
+    // Prioritize newest tickets first when working on non-certified items.
+    if (filterMode === 'withoutComments') {
+      return [...filtered].sort(
+        (a, b) => (b.dataApertura ? new Date(b.dataApertura).getTime() : 0) -
+          (a.dataApertura ? new Date(a.dataApertura).getTime() : 0)
+      );
+    }
+
+    return filtered;
+  }, [tickets, filterMode, searchText, statoFilter, prioritaFilter]);
+
+  const renderExpandedDetails = (record: TicketAperto) => (
+    <div style={{ padding: '8px 4px 4px 4px', display: 'grid', gap: 10 }}>
+      <div>
+        <strong>Descrizione:</strong>{' '}
+        {record.descrizione && record.descrizione.trim() ? record.descrizione : '—'}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(160px, 1fr))', gap: 12 }}>
+        <div>
+          <strong>Competenza:</strong> {record.competenza?.nome ?? '—'}
+        </div>
+        <div>
+          <strong>Macro Causa:</strong> {record.macroCausa?.nome ?? '—'}
+        </div>
+        <div>
+          <strong>Causa:</strong> {record.causa?.nome ?? '—'}
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(160px, 1fr))', gap: 12 }}>
+        <div>
+          <strong>Apertura:</strong>{' '}
+          {record.dataApertura ? new Date(record.dataApertura).toLocaleString('it-IT') : '—'}
+        </div>
+        <div>
+          <strong>Chiusura:</strong>{' '}
+          {record.dataChiusura ? new Date(record.dataChiusura).toLocaleString('it-IT') : '—'}
+        </div>
+        <div>
+          <strong>Modifica:</strong>{' '}
+          {record.modificatoIl ? new Date(record.modificatoIl).toLocaleString('it-IT') : '—'}
+        </div>
+      </div>
+    </div>
+  );
 
   const columns = [
     {
-      title: 'Ticket',
-      key: 'ticket',
+      title: 'Codice',
+      dataIndex: 'codiceTicket',
+      key: 'codiceTicket',
+      width: 120,
+      render: (codiceTicket: string | undefined) => (
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb' }}>
+          {codiceTicket ?? '—'}
+        </span>
+      ),
+    },
+    {
+      title: 'Titolo',
+      key: 'titolo',
       render: (_: unknown, record: TicketAperto) => (
         <div>
-          {record.codiceTicket && (
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: '#2563eb',
-                marginBottom: 4,
-                letterSpacing: '0.02em',
-              }}
-            >
-              {record.codiceTicket}
-            </div>
-          )}
           <div
             style={{
               fontWeight: 600,
               color: '#111827',
-              marginBottom: 2,
               lineHeight: '1.4',
             }}
           >
             {record.titolo}
           </div>
-          {record.descrizione && (
-            <div
-              style={{
-                color: '#6b7280',
-                fontSize: 13,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 480,
-              }}
-              title={record.descrizione}
-            >
-              {record.descrizione}
-            </div>
-          )}
         </div>
       ),
     },
@@ -159,16 +207,6 @@ export const TicketTable: React.FC = () => {
       key: 'priorita',
       width: 120,
       render: (priorita: string) => <PriorityBadge priority={priorita} />,
-    },
-    {
-      title: 'Data Apertura',
-      dataIndex: 'dataApertura',
-      key: 'dataApertura',
-      width: 140,
-      sorter: (a: TicketAperto, b: TicketAperto) =>
-        (a.dataApertura ? new Date(a.dataApertura).getTime() : 0) -
-        (b.dataApertura ? new Date(b.dataApertura).getTime() : 0),
-      render: (date: Date) => (date ? new Date(date).toLocaleDateString('it-IT') : '—'),
     },
     {
       title: '',
@@ -189,7 +227,7 @@ export const TicketTable: React.FC = () => {
               )
             }
             onClick={() => setCommentModalTicket(record)}
-            title={hasComment ? 'Visualizza commento' : 'Aggiungi commento'}
+            title={hasComment ? 'Ticket certificato: visualizza commento' : 'Aggiungi commento (certifica)'}
           />
         );
       },
@@ -221,15 +259,26 @@ export const TicketTable: React.FC = () => {
             setSearchText(value);
             if (!value && codiceTicketFilter) {
               setSearchParams({});
+              setFilterMode('withoutComments');
             }
           }}
           onSearch={(value) => {
             setSearchText(value);
             if (!value && codiceTicketFilter) {
               setSearchParams({});
+              setFilterMode('withoutComments');
             }
           }}
           style={{ flex: '1 1 280px', maxWidth: 420 }}
+        />
+        <Segmented
+          options={[
+            { label: `Senza commenti (${countsByMode.withoutComments})`, value: 'withoutComments' },
+            { label: `Certificati (${countsByMode.certified})`, value: 'certified' },
+            { label: `Tutti (${countsByMode.all})`, value: 'all' },
+          ]}
+          value={filterMode}
+          onChange={(value) => setFilterMode(value as FilterMode)}
         />
         <Select
           placeholder="Stato"
@@ -273,6 +322,15 @@ export const TicketTable: React.FC = () => {
         dataSource={filteredTickets}
         rowKey="id"
         loading={loading}
+        expandable={{
+          expandedRowRender: renderExpandedDetails,
+          expandRowByClick: true,
+          expandedRowKeys,
+          onExpandedRowsChange: (keys) => {
+            const latestKey = keys.length > 0 ? keys[keys.length - 1] : undefined;
+            setExpandedRowKeys(latestKey !== undefined ? [latestKey] : []);
+          },
+        }}
         pagination={{
           pageSize: 10,
           showSizeChanger: true,
